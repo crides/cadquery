@@ -104,12 +104,30 @@ def convert_and_validate(edges: Iterable[Edge]) -> Tuple[List[Arc], List[Point]]
             r = e.radius()
             a1, a2 = e._bounds()
 
-            arcs.add(Arc(Point(c.x, c.y), r, a1, a2))
+            arcs.add(Arc(Point(c.x, c.y), r, degrees(a1), degrees(a2)))
 
         else:
-            raise ValueError("Unsupported geometry {gt}")
+            raise ValueError(f"Unsupported geometry {gt}")
 
-    return list(arcs), list(points)
+    sorted_arcs = []
+    last_arc_angle = {}
+    while len(arcs):
+        iter_arcs = list(arcs)
+        for n in iter_arcs:
+            k = n.r, n.c.x, n.c.y
+            if k not in last_arc_angle:
+                m = min((a for a in arcs), key=lambda a: a.a1)
+                print(m.a1)
+                sorted_arcs.append(m)
+                arcs.remove(m)
+                last_arc_angle[k] = m.a1
+            else:
+                if abs(n.a2 % 360 - last_arc_angle[k] % 360) < 0.01:
+                    sorted_arcs.append(n)
+                    arcs.remove(n)
+                    last_arc_angle[k] = n.a1
+
+    return sorted_arcs, list(points)
 
 
 def select_lowest_point(points: Points) -> Tuple[Point, int]:
@@ -296,8 +314,11 @@ def arc_arc(a1: Arc, a2: Arc) -> Tuple[float, Segment]:
 
 
 def get_angle(current: Entity, e: Entity) -> Tuple[float, Segment]:
-
-    if current is e:
+    def center(e: Entity):
+        if isinstance(e, Point):
+            return e
+        return e.c
+    if center(current) == center(e):
         return inf, Segment(Point(inf, inf), Point(inf, inf))
 
     if isinstance(current, Point):
